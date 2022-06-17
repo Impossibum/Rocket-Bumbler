@@ -82,10 +82,10 @@ class EventReward(RewardFunction):
 
 
 class JumpTouchReward(RewardFunction):
-    def __init__(self, min_height=92, exp=0.2):
+    def __init__(self, min_height=92.75):
         self.min_height = min_height
-        self.exp = exp
-        self.max = math.inf
+        self.max_height = 2044-92.75
+        self.range = self.max_height - self.min_height
 
     def reset(self, initial_state: GameState):
         pass
@@ -94,7 +94,7 @@ class JumpTouchReward(RewardFunction):
         self, player: PlayerData, state: GameState, previous_action: np.ndarray
     ) -> float:
         if player.ball_touched and not player.on_ground and state.ball.position[2] >= self.min_height:
-            return (clamp(self.max, 0.0001, state.ball.position[2] - 92) ** self.exp)-1
+            return (state.ball.position[2] - self.min_height) / self.range
 
         return 0
 
