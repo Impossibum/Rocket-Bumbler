@@ -30,17 +30,18 @@ class SimplifiedBaseReward(RewardFunction):
             else:
                 self.blue_count += 1
 
-        self.goal_reward = 10 + (5 * self.blue_count)
+        #self.goal_reward = 10 + (5 * self.blue_count)
 
         tgv = (self.goal_reward * self.team_spirit)/self.blue_count
-        gv = (self.goal_reward * (1 - self.team_spirit)) - tgv
+        gv = max(0.0, (self.goal_reward * (1 - self.team_spirit)) - tgv)
         self.reward = OncePerStepRewardWrapper(CombinedReward((
-            EventReward(goal=gv, team_goal=tgv, demo=self.boost_weight, boost_pickup=self.boost_weight),
+            EventReward(goal=0, team_goal=self.goal_reward, demo=self.boost_weight*2, boost_pickup=self.boost_weight),
             TouchVelChange(),
             PositiveWrapperReward(VelocityBallToGoalReward()),
+            JumpTouchReward(min_height=200),
         ),
             # (1.0, 1.0, 0.05, 1.0, 0.2)))
-            (1.0, 0.2, 0.05)))
+            (1.0, 0.1, 0.05, 2.5)))
 
     def reset(self, initial_state: GameState) -> None:
         if self.reward is None:
@@ -55,31 +56,25 @@ class PersonalRewards(RewardFunction): #reward intended soley for the individual
     def __init__(self, boost_weight=1.0):
         super().__init__()
         self.boost_weight = boost_weight
-        self.boost_disc_weight = self.boost_weight * 0.02222
-        self.reward = OncePerStepRewardWrapper(CombinedReward((
-            JumpTouchReward(min_height=500, exp=0.02),
-            # VelocityPlayerToBallReward(), , 0.005
-            BoostDiscipline(),
-            RetreatReward(),
-            KickoffReward(),
-        ),
-            (1.0, self.boost_disc_weight, 0.03334, 0.3334)))
+        self.boost_disc_weight = self.boost_weight * 0.02223
+        self.reward = BoostDiscipline()
 
     def reset(self, initial_state: GameState) -> None:
         self.reward.reset(initial_state)
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
-        return self.reward.get_reward(player, state, previous_action)
+        return self.reward.get_reward(player, state, previous_action) * self.boost_disc_weight
+
 
 class RLFiveReward(RewardFunction):
-    def __init__(self, team_spirit=0.3):
+    def __init__(self, team_spirit=1.0):
         super().__init__()
         self.team_spirit = team_spirit
         self.blue_rewards = dict()
         self.orange_rewards = dict()
         self.prev_action_dummy = np.zeros(8)
         self.personal_rewards = dict()
-        self.boost_weight = 3.0
+        self.boost_weight = 1.5
 
     def reset(self, initial_state: GameState) -> None:
         for p in initial_state.players:
